@@ -35,8 +35,8 @@ model Referral {
   expiresAt      DateTime
   createdAt      DateTime @default(now())
 
-  creator        User     @relation("CreatorReferrals", fields: [creatorUserId], references: [id])
-  usedBy         User?    @relation("UsedReferrals", fields: [usedByUserId], references: [id])
+  creator        User     @relation("CreatorReferrals", fields: [creatorUserId], references: [id], onDelete: Cascade)
+  usedBy         User?    @relation("UsedReferrals", fields: [usedByUserId], references: [id], onDelete: Cascade)
 }
 model Profile {
   id        String   @id @default(uuid())
@@ -49,7 +49,7 @@ model Profile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user      User     @relation(fields: [userId], references: [id])
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 model Product {
   id          String   @id @default(uuid())
@@ -80,8 +80,8 @@ model AlbumAccess {
   albumId   String
   grantedAt DateTime @default(now())
   // Relazioni opzionali
-  user      User     @relation(fields: [userId], references: [id])
-  album     Album    @relation(fields: [albumId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  album     Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
 }
 
 enum Role {
