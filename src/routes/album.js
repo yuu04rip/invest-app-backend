@@ -8,9 +8,10 @@ const {
     updateAlbumValidator,
     idParamValidator
 } = require('../middleware/albumValidators');
+const apiLimiter = require('../middleware/rateLimiter');
 
 // Crea nuovo album
-router.post('/', auth, createAlbumValidator, validate, albumController.createAlbum);
+router.post('/', auth, apiLimiter, createAlbumValidator, validate, albumController.createAlbum);
 
 // Lista album (pubblico o autenticato, come preferisci)
 router.get('/', albumController.getAllAlbums);
@@ -19,9 +20,9 @@ router.get('/', albumController.getAllAlbums);
 router.get('/:id', idParamValidator, validate, albumController.getAlbumById);
 
 // Modifica album
-router.put('/:id', auth, idParamValidator, validate, updateAlbumValidator, validate, albumController.updateAlbumById);
+router.put('/:id', auth, apiLimiter, idParamValidator, validate, updateAlbumValidator, validate, albumController.updateAlbumById);
 
 // Elimina album
-router.delete('/:id', auth, idParamValidator, validate, albumController.deleteAlbumById);
+router.delete('/:id', auth, apiLimiter, idParamValidator, validate, albumController.deleteAlbumById);
 
 module.exports = router;

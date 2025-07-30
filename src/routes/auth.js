@@ -8,10 +8,11 @@ const {
     resendOtpValidator
 } = require('../middleware/authValidators');
 const validate = require('../middleware/validate');
+const apiLimiter = require('../middleware/rateLimiter');
 
 router.post('/register', registerValidator, validate, authController.register);
-router.post('/login', loginValidator, validate, authController.login);
-router.post('/verify-otp', otpValidator, validate, authController.verifyOtp);
+router.post('/login', apiLimiter, loginValidator, validate, authController.login);
+router.post('/verify-otp', apiLimiter, otpValidator, validate, authController.verifyOtp);
 router.post('/resend-otp', resendOtpValidator, validate, authController.resendOtp);
 
 module.exports = router;

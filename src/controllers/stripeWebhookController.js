@@ -12,7 +12,8 @@ exports.handleStripeWebhook = async (req, res) => {
             process.env.STRIPE_WEBHOOK_SECRET
         );
     } catch (err) {
-        return res.status(400).send(`Webhook Error: ${err.message}`);
+        console.error('Stripe webhook error:', err);
+        return res.status(400).send('Webhook Error: richiesta non valida.');
     }
 
     if (event.type === 'checkout.session.completed') {
