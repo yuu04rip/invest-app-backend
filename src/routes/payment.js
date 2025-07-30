@@ -6,6 +6,13 @@ const validate = require('../middleware/validate');
 const { createCheckoutSessionValidator } = require('../middleware/paymentValidators');
 const apiLimiter = require('../middleware/rateLimiter');
 
-router.post('/checkout', auth, apiLimiter, createCheckoutSessionValidator, validate, paymentController.createCheckoutSession);
+router.post(
+    '/checkout',
+    apiLimiter, // PRIMA!
+    auth,
+    createCheckoutSessionValidator,
+    validate,
+    paymentController.createCheckoutSession
+);
 
 module.exports = router;

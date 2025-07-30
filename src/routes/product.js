@@ -11,10 +11,43 @@ const {
 } = require('../middleware/productValidators');
 
 // CRUD prodotti
-router.post('/', auth, apiLimiter,createProductValidator, validate, productController.createProduct);
+router.post(
+    '/',
+    apiLimiter, // PRIMA!
+    auth,
+    createProductValidator,
+    validate,
+    productController.createProduct
+);
+
 router.get('/', productController.getAllProducts);
-router.get('/:id', idParamValidator, validate, productController.getProductById);
-router.put('/:id', auth,apiLimiter, idParamValidator, validate, updateProductValidator, validate, productController.updateProductById);
-router.delete('/:id', auth, apiLimiter, idParamValidator, validate, productController.deleteProductById);
+
+router.get(
+    '/:id',
+    apiLimiter, // Anche qui se vuoi proteggere da flood su singolo prodotto!
+    idParamValidator,
+    validate,
+    productController.getProductById
+);
+
+router.put(
+    '/:id',
+    apiLimiter,
+    auth,
+    idParamValidator,
+    validate,
+    updateProductValidator,
+    validate,
+    productController.updateProductById
+);
+
+router.delete(
+    '/:id',
+    apiLimiter,
+    auth,
+    idParamValidator,
+    validate,
+    productController.deleteProductById
+);
 
 module.exports = router;
