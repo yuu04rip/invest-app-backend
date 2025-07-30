@@ -2,6 +2,7 @@ module.exports = {
     env: {
         node: true,
         es2021: true,
+        jest: true, // <--- AGGIUNGI QUESTO!
     },
     extends: [
         'eslint:recommended',
@@ -11,5 +12,6 @@ module.exports = {
         sourceType: 'module',
     },
     rules: {
+        // Add your custom rules here
     },
 };
