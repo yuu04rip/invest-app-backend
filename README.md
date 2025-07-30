@@ -10,17 +10,18 @@ Backend API per applicazione Invest App: gestione utenti, autenticazione, profil
 - [Variabili d’ambiente](#variabili-dambiente)
 - [Script principali](#script-principali)
 - [Struttura delle API](#struttura-delle-api)
-   - [Autenticazione](#autenticazione)
-   - [User](#user)
-   - [Profile](#profile)
-   - [Referral](#referral)
-   - [Products](#products)
-   - [Albums](#albums)
-   - [Album Access](#album-access)
-   - [Payments](#payments)
-   - [Root & Webhook](#root--webhook)
+  - [Autenticazione](#autenticazione)
+  - [User](#user)
+  - [Profile](#profile)
+  - [Referral](#referral)
+  - [Products](#products)
+  - [Albums](#albums)
+  - [Album Access](#album-access)
+  - [Payments](#payments)
+  - [Root & Webhook](#root--webhook)
 - [Best Practice](#best-practice)
 - [Testing](#testing)
+- [Mock & Testing Stripe](#mock--testing-stripe)
 - [Contribuire](#contribuire)
 
 ---
@@ -50,8 +51,8 @@ Backend API per applicazione Invest App: gestione utenti, autenticazione, profil
    ```
 
 3. **Configura il database**
-   - Crea un database MySQL/MariaDB.
-   - Copia `.env.example` in `.env` e aggiorna la variabile `DATABASE_URL`.
+  - Crea un database MySQL/MariaDB.
+  - Copia `.env.example` in `.env` e aggiorna la variabile `DATABASE_URL`.
 
 4. **Setup Prisma / Migrate**
    ```sh
@@ -187,6 +188,24 @@ STRIPE_WEBHOOK_SECRET=...
   npm test
   ```
 - Test integrati coprono: auth, profili, referral, prodotti, album, pagamenti, root endpoint.
+
+---
+
+## Mock & Testing Stripe
+
+- L'integrazione Stripe è centralizzata in `lib/stripe.js`.
+- Nei test, **mocka sempre `lib/stripe.js`** e NON direttamente il pacchetto `stripe`.
+- Esempio di mock (usato nei test webhook):
+
+    ```js
+    jest.mock('../../lib/stripe', () => ({
+      webhooks: {
+        constructEvent: jest.fn(),
+      },
+    }));
+    ```
+
+- Questo garantisce che controller e test usino la stessa istanza e facilita la personalizzazione dei comportamenti Stripe nei test.
 
 ---
 
