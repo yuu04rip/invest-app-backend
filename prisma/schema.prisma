@@ -8,18 +8,22 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String
-  role         Role
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  email          String    @unique
+  passwordHash   String
+  role           Role
+  isActive       Boolean   @default(true)
+  isVerified     Boolean   @default(false) // <--- AGGIUNGI QUESTO
+  otpCode        String?                   // <--- E QUESTO
+  otpExpiresAt   DateTime?                 // <--- E QUESTO
+  otpAttempts    Int        @default(0)    // <--- E QUESTO
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   Profile        Profile?
   referrals      Referral[] @relation("CreatorReferrals")
   usedReferrals  Referral[] @relation("UsedReferrals")
-    albumAccesses  AlbumAccess[]
+  albumAccesses  AlbumAccess[]
 }
 
 model Referral {
