@@ -10,6 +10,7 @@ const albumRoutes = require('./routes/album');
 const paymentRoutes = require('./routes/payment');
 const albumAccessRoutes = require('./routes/albumAccess');
 const stripeWebhookRoutes = require('./routes/stripeWebhook');
+const errorHandler = require('./middleware/errorHandler');
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
@@ -20,6 +21,7 @@ app.use('/api/albums', albumRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/album-access', albumAccessRoutes);
 app.use('/webhook', stripeWebhookRoutes);
+app.use(errorHandler);
 app.get('/', (req, res) => {
     res.send('Invest App Backend is running!');
 });
