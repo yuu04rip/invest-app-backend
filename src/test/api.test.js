@@ -1,9 +1,14 @@
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
 const app = require('../index');
 const prisma = require('../prisma');
 
+function generateTestToken(payload) {
+    // Usa la stessa chiave segreta della tua app!
+    return jwt.sign(payload, process.env.JWT_SECRET || 'testsecret', { expiresIn: '1h' });
+}
+
 describe('API Integrata - Invest App Backend', () => {
-    // Variabili condivise tra i test
     let testEmail = `testuser_${Date.now()}@mail.com`;
     const testPassword = 'TestPassword123!';
     let testToken;
@@ -11,26 +16,29 @@ describe('API Integrata - Invest App Backend', () => {
     let testProductId;
     let testAlbumId;
     let otp;
+    let adminToken;
+    let userToken;
 
-    // Pulizia prima/dopo i test
     beforeAll(async () => {
         // Elimina dati collegati PRIMA di eliminare user (per foreign key)
         const user = await prisma.user.findUnique({ where: { email: testEmail } });
         if (user) {
             await prisma.profile.deleteMany({ where: { userId: user.id } });
-            await prisma.product.deleteMany({}); // aggiungi filtro userId se necessario
+            await prisma.product.deleteMany({});
             await prisma.albumAccess.deleteMany({ where: { userId: user.id } });
-            // Elimina referral usati/creati dall'utente
             await prisma.referral.deleteMany({ where: { OR: [{ creatorUserId: user.id }, { usedByUserId: user.id }] } });
         }
         await prisma.user.deleteMany({ where: { email: testEmail } });
+
+        // Genera token admin e user per test ACL prodotti
+        adminToken = generateTestToken({ id: 'admin-id', email: `admin_${Date.now()}@mail.com`, role: 'ADMIN' });
+        userToken = generateTestToken({ id: 'user-id', email: `user_${Date.now()}@mail.com`, role: 'USER' });
     });
     afterAll(async () => {
-        // Elimina dati collegati PRIMA di eliminare user (per foreign key)
         const user = await prisma.user.findUnique({ where: { email: testEmail } });
         if (user) {
             await prisma.profile.deleteMany({ where: { userId: user.id } });
-            await prisma.product.deleteMany({}); // aggiungi filtro userId se necessario
+            await prisma.product.deleteMany({});
             await prisma.albumAccess.deleteMany({ where: { userId: user.id } });
             await prisma.referral.deleteMany({ where: { OR: [{ creatorUserId: user.id }, { usedByUserId: user.id }] } });
         }
@@ -60,7 +68,6 @@ describe('API Integrata - Invest App Backend', () => {
         });
 
         it('POST /api/auth/verify-otp → verifica OTP', async () => {
-            // Prende OTP reale dal DB
             const user = await prisma.user.findUnique({ where: { email: testEmail } });
             otp = user.otpCode;
             expect(otp).toBeDefined();
@@ -139,14 +146,6 @@ describe('API Integrata - Invest App Backend', () => {
             expect(res.body).toHaveProperty('name', 'New');
             expect(res.body).toHaveProperty('surname', 'Name');
         });
-
-        // DELETE test disabilitato per sicurezza
-        // it('DELETE /api/profile/:id → elimina profilo', async () => {
-        //   const res = await request(app)
-        //     .delete(`/api/profile/${testProfileId}`)
-        //     .set('Authorization', `Bearer ${testToken}`);
-        //   expect([200, 204]).toContain(res.statusCode);
-        // });
     });
 
     // ------------------ REFERRAL ------------------
@@ -164,10 +163,8 @@ describe('API Integrata - Invest App Backend', () => {
                 .get('/api/referral/me')
                 .set('Authorization', `Bearer ${testToken}`);
             expect([200, 201]).toContain(res.statusCode);
-            // Cambia il test per aspettarsi la struttura corretta!
             expect(res.body).toHaveProperty('created');
             expect(Array.isArray(res.body.created)).toBe(true);
-            // Se c'è almeno un referral creato, aspettati code
             if (res.body.created.length > 0) {
                 expect(res.body.created[0]).toHaveProperty('code');
             }
@@ -187,20 +184,29 @@ describe('API Integrata - Invest App Backend', () => {
 
     // ------------------ PRODUCTS ------------------
     describe('Products', () => {
-        it('POST /api/products/ → crea prodotto', async () => {
+        it('POST /api/products/ → crea prodotto (ADMIN)', async () => {
             const res = await request(app)
                 .post('/api/products/')
-                .set('Authorization', `Bearer ${testToken}`)
+                .set('Authorization', `Bearer ${adminToken}`)
                 .send({ name: 'Prodotto Test', description: 'Desc', price: 99.9 });
             expect([200, 201]).toContain(res.statusCode);
             expect(res.body).toHaveProperty('id');
             testProductId = res.body.id;
         });
 
+        it('POST /api/products/ → crea prodotto (USER, 403)', async () => {
+            const res = await request(app)
+                .post('/api/products/')
+                .set('Authorization', `Bearer ${userToken}`)
+                .send({ name: 'Prodotto User', description: 'Desc', price: 10 });
+            expect(res.statusCode).toBe(403);
+            expect(res.body.error).toMatch(/forbidden/i);
+        });
+
         it('GET /api/products/ → lista prodotti', async () => {
             const res = await request(app)
                 .get('/api/products/')
-                .set('Authorization', `Bearer ${testToken}`);
+                .set('Authorization', `Bearer ${userToken}`);
             expect(res.statusCode).toBe(200);
             expect(Array.isArray(res.body)).toBe(true);
         });
@@ -208,25 +214,49 @@ describe('API Integrata - Invest App Backend', () => {
         it('GET /api/products/:id → prodotto per ID', async () => {
             const res = await request(app)
                 .get(`/api/products/${testProductId}`)
-                .set('Authorization', `Bearer ${testToken}`);
+                .set('Authorization', `Bearer ${adminToken}`);
             expect([200, 201]).toContain(res.statusCode);
             expect(res.body).toHaveProperty('id', testProductId);
         });
 
-        it('PUT /api/products/:id → aggiorna prodotto', async () => {
+        it('PUT /api/products/:id → aggiorna prodotto (ADMIN)', async () => {
             const res = await request(app)
                 .put(`/api/products/${testProductId}`)
-                .set('Authorization', `Bearer ${testToken}`)
+                .set('Authorization', `Bearer ${adminToken}`)
                 .send({ name: 'Prodotto Modificato' });
             expect([200, 201]).toContain(res.statusCode);
             expect(res.body.name).toBe('Prodotto Modificato');
         });
 
-        it('DELETE /api/products/:id → elimina prodotto', async () => {
+        it('PUT /api/products/:id → aggiorna prodotto (USER, 403)', async () => {
+            const res = await request(app)
+                .put(`/api/products/${testProductId}`)
+                .set('Authorization', `Bearer ${userToken}`)
+                .send({ name: 'Tentativo Modifica' });
+            expect(res.statusCode).toBe(403);
+            expect(res.body.error).toMatch(/forbidden/i);
+        });
+
+        it('DELETE /api/products/:id → elimina prodotto (ADMIN)', async () => {
             const res = await request(app)
                 .delete(`/api/products/${testProductId}`)
-                .set('Authorization', `Bearer ${testToken}`);
+                .set('Authorization', `Bearer ${adminToken}`);
             expect([200, 204]).toContain(res.statusCode);
+        });
+
+        it('DELETE /api/products/:id → elimina prodotto (USER, 403)', async () => {
+            // Prima crea un prodotto da eliminare come admin
+            const createRes = await request(app)
+                .post('/api/products/')
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({ name: 'Da Eliminare', price: 1 });
+            const prodId = createRes.body.id;
+
+            const res = await request(app)
+                .delete(`/api/products/${prodId}`)
+                .set('Authorization', `Bearer ${userToken}`);
+            expect(res.statusCode).toBe(403);
+            expect(res.body.error).toMatch(/forbidden/i);
         });
     });
 
@@ -285,7 +315,7 @@ describe('API Integrata - Invest App Backend', () => {
             const res = await request(app)
                 .get(`/api/album-access/${album.id}`)
                 .set('Authorization', `Bearer ${testToken}`);
-            expect([200, 201, 404]).toContain(res.statusCode); // 404 se album non accessibile
+            expect([200, 201, 404]).toContain(res.statusCode);
             await prisma.album.delete({ where: { id: album.id } });
         });
     });
@@ -293,19 +323,17 @@ describe('API Integrata - Invest App Backend', () => {
     // ------------------ PAYMENTS ------------------
     describe('Payments', () => {
         it('POST /api/payments/checkout → crea pagamento', async () => {
-            // NB: Adatta secondo la tua implementazione e parametri richiesti
             const res = await request(app)
                 .post('/api/payments/checkout')
                 .set('Authorization', `Bearer ${testToken}`)
                 .send({ amount: 100, productId: testProductId || 1 });
-            expect([200, 201, 400]).toContain(res.statusCode); // 400 se productId mancante/non valido
+            expect([200, 201, 400]).toContain(res.statusCode);
         });
     });
 
     // ------------------ STRIPE WEBHOOK ------------------
     describe('Stripe Webhook', () => {
         it('POST /webhook/stripe → mock chiamata webhook', async () => {
-            // NB: Adatta/mocca payload secondo la tua implementazione Stripe
             const res = await request(app)
                 .post('/webhook/stripe')
                 .send({ type: 'payment_intent.succeeded', data: { object: { id: 'pi_test' } } });

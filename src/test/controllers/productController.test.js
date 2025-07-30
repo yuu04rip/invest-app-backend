@@ -11,15 +11,34 @@ jest.mock('/src/prisma', () => ({
     },
 }));
 
-const app = express();
-app.use(express.json());
-app.post('/products', productController.createProduct);
-app.get('/products', productController.getAllProducts);
-app.get('/products/:id', productController.getProductById);
-app.put('/products/:id', productController.updateProductById);
-app.delete('/products/:id', productController.deleteProductById);
+// Middleware mock per il ruolo
+function mockAuth(role = 'USER') {
+    return (req, res, next) => {
+        req.user = { id: 'mockUser', role };
+        next();
+    };
+}
 
-describe('Product Controller', () => {
+// Helper per creare app con ruolo specifico
+function makeApp(role = 'USER') {
+    const app = express();
+    app.use(express.json());
+    app.post('/products', mockAuth(role), productController.createProduct);
+    app.get('/products', mockAuth(role), productController.getAllProducts);
+    app.get('/products/:id', mockAuth(role), productController.getProductById);
+    app.put('/products/:id', mockAuth(role), productController.updateProductById);
+    app.delete('/products/:id', mockAuth(role), productController.deleteProductById);
+    return app;
+}
+
+describe('Product Controller CRUD & Ruoli', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    // --- TEST CRUD BASE (con role ADMIN per evitare blocchi) ---
+    const app = makeApp('ADMIN');
+
     it('should create a product', async () => {
         const res = await request(app).post('/products').send({ name: 'Test', price: 10 });
         expect(res.statusCode).toBe(201);
@@ -53,5 +72,67 @@ describe('Product Controller', () => {
         const res = await request(app).delete('/products/1');
         expect(res.statusCode).toBe(200);
         expect(res.body.message).toBe('Product deleted');
+    });
+
+    // ---- CASI LIMITE ----
+
+    it('should return 500 if create throws', async () => {
+        const prisma = require('/src/prisma');
+        prisma.product.create.mockRejectedValueOnce(new Error('DB error'));
+        const res = await request(app).post('/products').send({ name: 'Fail', price: 10 });
+        expect(res.statusCode).toBe(500);
+        expect(res.body.error).toMatch(/DB error/);
+    });
+
+    it('should return 400 if required params are missing', async () => {
+        const res = await request(app).post('/products').send({ price: 10 });
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toMatch(/missing/i);
+    });
+
+    it('should return 500 if update throws', async () => {
+        const prisma = require('/src/prisma');
+        prisma.product.update.mockRejectedValueOnce(new Error('DB error'));
+        const res = await request(app).put('/products/1').send({ name: 'Oops' });
+        expect(res.statusCode).toBe(500);
+        expect(res.body.error).toMatch(/DB error/);
+    });
+
+    it('should return 500 if delete throws', async () => {
+        const prisma = require('/src/prisma');
+        prisma.product.delete.mockRejectedValueOnce(new Error('DB error'));
+        const res = await request(app).delete('/products/1');
+        expect(res.statusCode).toBe(500);
+        expect(res.body.error).toMatch(/DB error/);
+    });
+
+    // ---- TEST RUOLI & ACL ----
+
+    it('should forbid USER from creating a product', async () => {
+        const userApp = makeApp('USER');
+        const res = await request(userApp).post('/products').send({ name: 'Test', price: 10 });
+        expect(res.statusCode).toBe(403);
+        expect(res.body.error).toMatch(/forbidden/i);
+    });
+
+    it('should forbid GUEST from deleting a product', async () => {
+        const guestApp = makeApp('GUEST');
+        const res = await request(guestApp).delete('/products/1');
+        expect(res.statusCode).toBe(403);
+        expect(res.body.error).toMatch(/forbidden/i);
+    });
+
+    it('should allow USER to read products', async () => {
+        const userApp = makeApp('USER');
+        const res = await request(userApp).get('/products');
+        expect(res.statusCode).toBe(200);
+        expect(Array.isArray(res.body)).toBe(true);
+    });
+
+    it('should allow ADMIN to create a product', async () => {
+        const adminApp = makeApp('ADMIN');
+        const res = await request(adminApp).post('/products').send({ name: 'AdminProd', price: 99 });
+        expect(res.statusCode).toBe(201);
+        expect(res.body.name).toBe('AdminProd');
     });
 });
