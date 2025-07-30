@@ -55,6 +55,18 @@ exports.register = async (req, res) => {
             },
         });
 
+        // CREA ANCHE IL PROFILO ASSOCIATO
+        await prisma.profile.create({
+            data: {
+                userId: user.id,
+                name: "",
+                surname: "",
+                bio: "",
+                sector: "",
+                interests: "",
+            }
+        });
+
         // Marca come usato il referral, se fornito
         if (usedReferral) {
             await prisma.referral.update({

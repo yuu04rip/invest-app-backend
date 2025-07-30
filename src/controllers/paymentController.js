@@ -1,7 +1,7 @@
 const Stripe = require("stripe");
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-eexports.createCheckoutSession = async (req, res) => {
+exports.createCheckoutSession = async (req, res) => {
     try {
         const { products, userId, albumId } = req.body; // <-- aggiungi qui!
         if (!products || !Array.isArray(products) || products.length === 0) {

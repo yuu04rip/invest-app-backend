@@ -18,7 +18,17 @@ exports.getMyProfile = async (req, res) => {
 exports.updateMyProfile = async (req, res) => {
     try {
         const userId = req.user.userId;
-        const { name, surname, bio, sector, interests } = req.body;
+        // Fallback a stringa vuota se non passati
+        const name = req.body.name ?? "";
+        const surname = req.body.surname ?? "";
+        const bio = req.body.bio ?? "";
+        const sector = req.body.sector ?? "";
+        const interests = req.body.interests ?? "";
+
+        // Validazione base
+        if (!name || !surname) {
+            return res.status(400).json({ error: "Name and surname are required." });
+        }
 
         let profile = await prisma.profile.findUnique({ where: { userId } });
         if (!profile) {
@@ -45,6 +55,7 @@ exports.updateMyProfile = async (req, res) => {
         res.status(500).json({ error: 'Unable to update profile', details: err.message });
     }
 };
+
 exports.getAllProfiles = async (req, res) => {
     try {
         const profiles = await prisma.profile.findMany();
@@ -70,7 +81,16 @@ exports.getProfileById = async (req, res) => {
 exports.updateProfileById = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, surname, bio, sector, interests } = req.body;
+        const name = req.body.name ?? "";
+        const surname = req.body.surname ?? "";
+        const bio = req.body.bio ?? "";
+        const sector = req.body.sector ?? "";
+        const interests = req.body.interests ?? "";
+
+        if (!name || !surname) {
+            return res.status(400).json({ error: "Name and surname are required." });
+        }
+
         const profile = await prisma.profile.update({
             where: { id },
             data: { name, surname, bio, sector, interests }
