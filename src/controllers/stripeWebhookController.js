@@ -1,6 +1,5 @@
+const stripe = require('../lib/stripe');
 const prisma = require('../prisma');
-const Stripe = require('stripe');
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 exports.handleStripeWebhook = async (req, res) => {
     const sig = req.headers['stripe-signature'];

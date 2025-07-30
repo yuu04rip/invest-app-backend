@@ -76,7 +76,7 @@ exports.deleteAlbumById = async (req, res) => {
     try {
         const { id } = req.params;
         await prisma.album.delete({ where: { id } });
-        res.json({ message: 'Album deleted' });
+        res.json({ id });
     } catch (err) {
         res.status(500).json({ error: 'Unable to delete album', details: err.message });
     }
