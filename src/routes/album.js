@@ -22,7 +22,7 @@ router.get('/:id', idParamValidator, validate, albumController.getAlbumById);
 // Modifica album
 router.put('/:id', auth, apiLimiter, idParamValidator, validate, updateAlbumValidator, validate, albumController.updateAlbumById);
 
-// Elimina album
+// Elimina albu
 router.delete('/:id', auth, apiLimiter, idParamValidator, validate, albumController.deleteAlbumById);
 
 module.exports = router;
