@@ -11,6 +11,5 @@ module.exports = {
         sourceType: 'module',
     },
     rules: {
-        // Aggiungi qui le tue regole personalizzate, se necessario
     },
 };
