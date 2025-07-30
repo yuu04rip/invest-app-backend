@@ -1,163 +1,205 @@
 # Invest App Backend
 
-Backend per la gestione di utenti, autenticazione, prodotti, album e verifica email con OTP.
+Backend API per applicazione Invest App: gestione utenti, autenticazione, profili, referral, prodotti, album, pagamenti e accessi.
 
 ---
 
-## **Caratteristiche principali**
-
-- **Registrazione utente** con verifica email tramite OTP (One-Time Password)
-- **Login** consentito solo dopo verifica email
-- **Gestione referral code**
-- **Gestione profili, prodotti, album, pagamenti**
-- **API RESTful** realizzate con Express.js e Prisma ORM (MySQL)
-- **Invio email** tramite Nodemailer (Gmail/App Password)
-- **Protezione tentativi OTP** (antibruteforce)
-
----
-
-## **Setup progetto**
-
-### 1. **Clona il repository**
-```sh
-git clone https://github.com/yuu04rip/invest-app-backend.git
-cd invest-app-backend
-```
-
-### 2. **Installa le dipendenze**
-```sh
-npm install
-```
-
-### 3. **Configura le variabili d’ambiente**
-
-Crea un file `.env` nella root con i seguenti parametri (modifica secondo le tue esigenze):
-
-```
-DATABASE_URL="mysql://user:password@localhost:3306/investdb"
-EMAIL_SERVICE=gmail
-EMAIL_USER=tuamail@gmail.com
-EMAIL_PASS=la-tua-app-password
-JWT_SECRET=sicretissimasegreta
-FRONTEND_VERIFY_URL=http://localhost:3000/verify-otp
-```
-
-### 4. **Esegui le migration Prisma**
-```sh
-npx prisma migrate dev
-```
-
-### 5. **Avvia il server**
-```sh
-npm start
-```
-Server in ascolto su `http://localhost:5000` (o porta configurata).
+## **Indice**
+- [Stack & Tecnologie](#stack--tecnologie)
+- [Setup locale](#setup-locale)
+- [Variabili d’ambiente](#variabili-dambiente)
+- [Script principali](#script-principali)
+- [Struttura delle API](#struttura-delle-api)
+   - [Autenticazione](#autenticazione)
+   - [User](#user)
+   - [Profile](#profile)
+   - [Referral](#referral)
+   - [Products](#products)
+   - [Albums](#albums)
+   - [Album Access](#album-access)
+   - [Payments](#payments)
+   - [Root & Webhook](#root--webhook)
+- [Best Practice](#best-practice)
+- [Testing](#testing)
+- [Contribuire](#contribuire)
 
 ---
 
-## **Flusso verifica email con OTP**
+## Stack & Tecnologie
 
-1. **POST `/api/auth/register`**
-   - Registra l’utente
-   - Genera OTP e la invia via email
-   - L’utente è `isVerified: false` finché non verifica l’email
-
-2. **POST `/api/auth/verify-otp`**
-   - L’utente invia email e OTP ricevuta
-   - Se valida, `isVerified: true` e OTP invalidata
-
-3. **POST `/api/auth/resend-otp`**
-   - Invia una nuova OTP se necessario
-
-4. **POST `/api/auth/login`**
-   - Login consentito solo a utenti con email verificata
+- **Node.js** + **Express**
+- **Prisma** (ORM)
+- **MySQL** (o MariaDB)
+- **JWT** (autenticazione)
+- **Stripe** (pagamenti)
+- **Jest** + **Supertest** (test integrati)
 
 ---
 
-## **Struttura cartelle principale**
+## Setup locale
 
-```
-/controllers
-  authController.js
-/routes
-  auth.js
-/utils
-  sendEmail.js
-/prisma
-  schema.prisma
-.env
-app.js / index.js
+1. **Clona il repo**
+   ```sh
+   git clone <repo-url>
+   cd invest-app-backend
+   ```
+
+2. **Installa le dipendenze**
+   ```sh
+   npm install
+   ```
+
+3. **Configura il database**
+   - Crea un database MySQL/MariaDB.
+   - Copia `.env.example` in `.env` e aggiorna la variabile `DATABASE_URL`.
+
+4. **Setup Prisma / Migrate**
+   ```sh
+   npx prisma migrate dev --name init
+   npx prisma generate
+   ```
+
+5. **Avvia il server**
+   ```sh
+   npm run dev
+   ```
+
+---
+
+## Variabili d’ambiente
+
+Copia `.env.example` in `.env` e personalizza:
+
+```env
+DATABASE_URL=mysql://user:password@localhost:3306/dbname
+JWT_SECRET=supersecret
+STRIPE_SECRET_KEY=...
+STRIPE_WEBHOOK_SECRET=...
 ```
 
 ---
 
-## **Esempi chiamate API**
+## Script principali
 
-### Registrazione
-
-```http
-POST /api/auth/register
-{
-  "email": "utente@esempio.com",
-  "password": "sicura1234",
-  "role": "investitore"
-}
-```
-
-### Verifica OTP
-
-```http
-POST /api/auth/verify-otp
-{
-  "email": "utente@esempio.com",
-  "otp": "123456"
-}
-```
-
-### Reinvio OTP
-
-```http
-POST /api/auth/resend-otp
-{
-  "email": "utente@esempio.com"
-}
-```
-
-### Login
-
-```http
-POST /api/auth/login
-{
-  "email": "utente@esempio.com",
-  "password": "sicura1234"
+```json
+"scripts": {
+  "dev": "nodemon index.js",
+  "start": "node index.js",
+  "test": "jest"
 }
 ```
 
 ---
 
-## **Sicurezza**
+## Struttura delle API
 
-- Le password sono crittografate con bcrypt
-- Le variabili sensibili sono in `.env`
-- Limite tentativi OTP e scadenza per prevenire attacchi a forza bruta
+> Tutte le rotte richiedono `Authorization: Bearer <token>` (eccetto registrazione/login/reset password/verify).
+
+### **Autenticazione**
+- `POST /api/auth/register`  
+  Registra utente (`email`, `password`, `role`). Invio OTP via email.
+- `POST /api/auth/verify-otp`  
+  Verifica OTP per attivazione account.
+- `POST /api/auth/login`  
+  Login, ricevi JWT.
+- `POST /api/auth/resend-otp`  
+  Reinvia OTP se non verificato.
+
+### **User**
+- `GET /api/user/me`  
+  Info utente loggato.
+
+### **Profile**
+- `GET /api/profile/me`  
+  Profilo proprio utente.
+- `PUT /api/profile/me`  
+  Crea/aggiorna proprio profilo (`name`, `surname`, ...).
+- `GET /api/profile/`  
+  Lista profili.
+- `GET /api/profile/:id`  
+  Profilo per ID.
+- `PUT /api/profile/:id`  
+  Aggiorna profilo per ID.
+- `DELETE /api/profile/:id`  
+  Elimina profilo per ID.
+
+### **Referral**
+- `POST /api/referral/generate`  
+  Crea nuovo referral code.
+- `GET /api/referral/me`  
+  Mostra referral creati/usati dall’utente.
+
+### **Products**
+- `POST /api/products/`  
+  Crea prodotto (`name`, `description`, `price`, ...).
+- `GET /api/products/`  
+  Lista prodotti.
+- `GET /api/products/:id`  
+  Prodotto per ID.
+- `PUT /api/products/:id`  
+  Aggiorna prodotto.
+- `DELETE /api/products/:id`  
+  Elimina prodotto.
+
+### **Albums**
+- `POST /api/albums/`  
+  Crea album (`name`).
+- `GET /api/albums/`  
+  Lista album.
+- `GET /api/albums/:id`  
+  Album per ID.
+- `PUT /api/albums/:id`  
+  Aggiorna album.
+- `DELETE /api/albums/:id`  
+  Elimina album.
+
+### **Album Access**
+- `GET /api/album-access/:albumId`  
+  Verifica se l’utente può accedere ad un album.
+
+### **Payments**
+- `POST /api/payments/checkout`  
+  Avvia pagamento Stripe per un prodotto.
+
+### **Root & Webhook**
+- `GET /`  
+  Test backend running.
+- `POST /webhook/stripe`  
+  Webhook Stripe (da configurare su Stripe Dashboard).
 
 ---
 
-## **Contribuire**
+## Best Practice
 
-1. Forka il repo
-2. Crea una feature branch (`git checkout -b feature/nome`)
-3. Commit & push
-4. Fai una Pull Request
-
----
-
-## **Licenza**
-
-MIT
+- **Validazione input**: sempre validare dati in ingresso lato backend.
+- **Gestione errori**: risposte JSON sempre coerenti (`error`, `details`).
+- **Pulizia dati di test**: i test eliminano dati dipendenti PRIMA di eliminare l’utente.
+- **Security**: usa JWT sicuri, environment variables per segreti, rate limiting su auth.
+- **Coerenza naming**: rispetta esattamente i nomi campo Prisma in API e test.
+- **Non loggare password o segreti** mai in console/log.
 
 ---
 
-## **Contatti**
+## Testing
 
-Per segnalazioni, richieste o collaborazione: [yuu04rip](https://github.com/yuu04rip)
+- **Avvia tutti i test:**
+  ```sh
+  npm test
+  ```
+- Test integrati coprono: auth, profili, referral, prodotti, album, pagamenti, root endpoint.
+
+---
+
+## Contribuire
+
+1. Forka il repo e apri una branch feature.
+2. Fai le tue modifiche con test.
+3. Apri una Pull Request.
+4. Descrivi bene la modifica.
+5. Mantieni lo stile e la coerenza del progetto.
+
+---
+
+**Licenza:** MIT
+
+---
