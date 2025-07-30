@@ -32,6 +32,8 @@
     "stripe": "^18.3.0"
   },
   "devDependencies": {
+    "@microsoft/eslint-formatter-sarif": "^3.1.0",
+    "eslint": "^9.32.0",
     "jest": "^30.0.5",
     "nodemailer": "^7.0.5",
     "nodemon": "^3.1.10",
