@@ -3,10 +3,7 @@ const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 exports.createCheckoutSession = async (req, res) => {
     try {
-        const { products, userId, albumId } = req.body; // <-- aggiungi qui!
-        if (!products || !Array.isArray(products) || products.length === 0) {
-            return res.status(400).json({ error: "Products required" });
-        }
+        const { products, userId, albumId } = req.body;
 
         const line_items = products.map(prod => ({
             price_data: {
@@ -24,9 +21,8 @@ exports.createCheckoutSession = async (req, res) => {
             success_url: 'myapp://payment-success?session_id={CHECKOUT_SESSION_ID}',
             cancel_url: 'myapp://payment-cancel',
             metadata: {
-                userId,   // <-- qui metti l'id dell'utente
-                albumId,  // <-- qui metti l'id dell'album
-                // puoi aggiungere altri campi se vuoi
+                userId,
+                albumId,
             }
         });
 

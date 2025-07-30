@@ -8,7 +8,7 @@ exports.handleStripeWebhook = async (req, res) => {
 
     try {
         event = stripe.webhooks.constructEvent(
-            req.rawBody, // Assicurati che il body non sia parsificato!
+            req.rawBody,
             sig,
             process.env.STRIPE_WEBHOOK_SECRET
         );
@@ -18,19 +18,21 @@ exports.handleStripeWebhook = async (req, res) => {
 
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
-        // Recupera userId e albumId dagli oggetti metadata della sessione Stripe
         const userId = session.metadata?.userId;
         const albumId = session.metadata?.albumId;
 
         if (userId && albumId) {
-            await prisma.albumAccess.create({
-                data: {
-                    userId,
-                    albumId,
-                },
-            });
+            try {
+                await prisma.albumAccess.create({
+                    data: { userId, albumId },
+                });
+            } catch (err) {
+                // Log error, but always return 200 to Stripe
+                console.error('Prisma error on album access create:', err);
+            }
         }
     }
 
+    // Stripe webhooks require a 2xx response in any case
     res.json({ received: true });
 };

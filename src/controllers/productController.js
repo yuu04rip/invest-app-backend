@@ -4,9 +4,14 @@ const prisma = require('../prisma');
 exports.createProduct = async (req, res) => {
     try {
         const { name, description, price, imageUrl } = req.body;
-        if (!name || !price) return res.status(400).json({ error: 'Name and price are required' });
+        // La validazione è ora nel middleware, quindi nessun controllo qui.
         const product = await prisma.product.create({
-            data: { name, description, price: Number(price), imageUrl }
+            data: {
+                name,
+                description,
+                price: Number(price),
+                imageUrl
+            }
         });
         res.status(201).json(product);
     } catch (err) {
@@ -43,7 +48,12 @@ exports.updateProductById = async (req, res) => {
         const { name, description, price, imageUrl } = req.body;
         const product = await prisma.product.update({
             where: { id },
-            data: { name, description, price: price ? Number(price) : undefined, imageUrl }
+            data: {
+                name,
+                description,
+                price: price !== undefined ? Number(price) : undefined,
+                imageUrl
+            }
         });
         res.json(product);
     } catch (err) {
