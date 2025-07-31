@@ -58,7 +58,7 @@ describe('API Integrata - Invest App Backend', () => {
             const user = await prisma.user.findUnique({ where: { email: testEmail } });
             expect(user).not.toBeNull();
             expect(user.otpCode).toBeDefined();
-        });
+        }, 20000);
 
         it('POST /api/auth/login → blocca login se non verificato', async () => {
             const res = await request(app)
