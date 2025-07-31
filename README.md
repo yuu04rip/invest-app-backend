@@ -1,5 +1,5 @@
 # Invest App Backend
-
+[![codecov](https://codecov.io/gh/yuu04rip/invest-app-backend/branch/main/graph/badge.svg)](https://codecov.io/gh/yuu04rip/invest-app-backend)
 Backend API per applicazione Invest App: gestione utenti, autenticazione, profili, referral, prodotti, album, pagamenti e accessi.
 
 ---
