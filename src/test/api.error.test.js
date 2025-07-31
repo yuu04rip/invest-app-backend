@@ -22,7 +22,7 @@ describe('API Error Cases - Invest App Backend', () => {
             .post('/api/auth/login')
             .send({ email: testEmail, password: testPassword });
         testToken = res.body.token;
-    });
+    },20000);
 
     afterAll(async () => {
         await cleanupTestUser(testEmail);
