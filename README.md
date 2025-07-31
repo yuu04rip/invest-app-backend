@@ -209,16 +209,6 @@ STRIPE_WEBHOOK_SECRET=...
 
 ---
 
-## Contribuire
-
-1. Forka il repo e apri una branch feature.
-2. Fai le tue modifiche con test.
-3. Apri una Pull Request.
-4. Descrivi bene la modifica.
-5. Mantieni lo stile e la coerenza del progetto.
-
----
-
 **Licenza:** MIT
 
 ---
