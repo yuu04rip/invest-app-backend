@@ -20,9 +20,19 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+      - name: Generate Prisma Client
+        run: npx prisma generate
 
       - name: Run tests and collect coverage
         run: npx jest --coverage
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          EMAIL_SERVICE: gmail
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
