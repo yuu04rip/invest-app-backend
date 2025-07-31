@@ -1,6 +1,7 @@
 const request = require('supertest');
 const express = require('express');
 const albumController = require('/src/controllers/albumController');
+const prisma = require('../../prisma');
 jest.mock('/src/prisma', () => ({
     album: {
         create: jest.fn(({ data }) => Promise.resolve({ id: '1', ...data })),
@@ -53,5 +54,51 @@ describe('Album Controller', () => {
         const res = await request(app).delete('/albums/1');
         expect(res.statusCode).toBe(200);
         expect(res.body.id).toBe('1');
+    });
+});
+describe('Album Controller extra coverage', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('should return 400 if album name is missing', async () => {
+        const res = await request(app).post('/albums').send({ productIds: [] });
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toBe('Name is required');
+    });
+
+    it('should handle error in createAlbum', async () => {
+        prisma.album.create.mockRejectedValueOnce(new Error('fail'));
+        const res = await request(app).post('/albums').send({ name: 'test' });
+        expect(res.statusCode).toBe(500);
+        expect(res.body.error).toBe('Unable to create album');
+    });
+
+    it('should handle error in getAllAlbums', async () => {
+        prisma.album.findMany.mockRejectedValueOnce(new Error('fail'));
+        const res = await request(app).get('/albums');
+        expect(res.statusCode).toBe(500);
+        expect(res.body.error).toBe('Unable to fetch albums');
+    });
+
+    it('should handle error in getAlbumById', async () => {
+        prisma.album.findUnique.mockRejectedValueOnce(new Error('fail'));
+        const res = await request(app).get('/albums/err');
+        expect(res.statusCode).toBe(500);
+        expect(res.body.error).toBe('Unable to fetch album');
+    });
+
+    it('should handle error in updateAlbumById', async () => {
+        prisma.album.update.mockRejectedValueOnce(new Error('fail'));
+        const res = await request(app).put('/albums/1').send({ name: 'test' });
+        expect(res.statusCode).toBe(500);
+        expect(res.body.error).toBe('Unable to update album');
+    });
+
+    it('should handle error in deleteAlbumById', async () => {
+        prisma.album.delete.mockRejectedValueOnce(new Error('fail'));
+        const res = await request(app).delete('/albums/1');
+        expect(res.statusCode).toBe(500);
+        expect(res.body.error).toBe('Unable to delete album');
     });
 });
