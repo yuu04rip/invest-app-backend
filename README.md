@@ -41,7 +41,7 @@ Backend API per applicazione Invest App: gestione utenti, autenticazione, profil
 
 1. **Clona il repo**
    ```sh
-   git clone <repo-url>
+   git clone https://github.com/yuu04rip/invest-app-backend.git
    cd invest-app-backend
    ```
 
