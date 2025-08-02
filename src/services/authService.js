@@ -6,35 +6,25 @@ const generateOTP = require('../utils/generateOTP');
 
 async function register({ email, password, role, referralCode }) {
     if (!email || !password || !role) {
-        const error = new Error('Missing required fields');
-        error.status = 400;
-        throw error;
+        return { success: false, message: 'Missing required fields' };
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
-        const error = new Error('User already exists');
-        error.status = 400;
-        throw error;
+        return { success: false, message: 'User already exists' };
     }
 
     let usedReferral = null;
     if (referralCode) {
         usedReferral = await prisma.referral.findUnique({ where: { code: referralCode } });
         if (!usedReferral) {
-            const error = new Error('Referral code not found');
-            error.status = 400;
-            throw error;
+            return { success: false, message: 'Referral code not found' };
         }
         if (usedReferral.isUsed) {
-            const error = new Error('Referral code already used');
-            error.status = 400;
-            throw error;
+            return { success: false, message: 'Referral code already used' };
         }
         if (new Date(usedReferral.expiresAt) < new Date()) {
-            const error = new Error('Referral code expired');
-            error.status = 400;
-            throw error;
+            return { success: false, message: 'Referral code expired' };
         }
     }
 
@@ -77,9 +67,14 @@ async function register({ email, password, role, referralCode }) {
     }
 
     const frontendVerifyUrl = process.env.FRONTEND_VERIFY_URL || 'http://localhost:3000/verify-otp';
-    await sendEmail(email, otp, frontendVerifyUrl);
+    try {
+        await sendEmail(email, otp, frontendVerifyUrl);
+    } catch (error) {
+        return { success: false, message: 'Registrazione creata, ma invio email fallito: ' + error.message };
+    }
 
     return {
+        success: true,
         id: user.id,
         email: user.email,
         role: user.role,
@@ -90,22 +85,16 @@ async function register({ email, password, role, referralCode }) {
 async function login({ email, password }) {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-        const error = new Error('Invalid credentials');
-        error.status = 401;
-        throw error;
+        return { success: false, message: 'Invalid credentials' };
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
-        const error = new Error('Invalid credentials');
-        error.status = 401;
-        throw error;
+        return { success: false, message: 'Invalid credentials' };
     }
 
     if (!user.isVerified) {
-        const error = new Error('Email non verificata. Controlla la tua casella mail e inserisci il codice OTP.');
-        error.status = 403;
-        throw error;
+        return { success: false, message: 'Email non verificata. Controlla la tua casella mail e inserisci il codice OTP.' };
     }
 
     const token = jwt.sign(
@@ -114,30 +103,22 @@ async function login({ email, password }) {
         { expiresIn: '7d' }
     );
 
-    return { token, user: { id: user.id, email: user.email, role: user.role } };
+    return { success: true, token, user: { id: user.id, email: user.email, role: user.role } };
 }
 
 async function verifyOtp({ email, otp }) {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-        const error = new Error('Utente non trovato');
-        error.status = 400;
-        throw error;
+        return { success: false, message: 'Utente non trovato' };
     }
     if (user.isVerified) {
-        const error = new Error('Email già verificata');
-        error.status = 400;
-        throw error;
+        return { success: false, message: 'Email già verificata' };
     }
     if (user.otpAttempts >= 5) {
-        const error = new Error('Troppi tentativi. Richiedi un nuovo codice.');
-        error.status = 429;
-        throw error;
+        return { success: false, message: 'Troppi tentativi. Richiedi un nuovo codice.' };
     }
     if (!user.otpCode || user.otpExpiresAt < new Date()) {
-        const error = new Error('OTP scaduto. Richiedi un nuovo codice.');
-        error.status = 400;
-        throw error;
+        return { success: false, message: 'OTP scaduto. Richiedi un nuovo codice.' };
     }
 
     if (user.otpCode !== otp) {
@@ -145,9 +126,7 @@ async function verifyOtp({ email, otp }) {
             where: { email },
             data: { otpAttempts: { increment: 1 } }
         });
-        const error = new Error('Codice OTP errato');
-        error.status = 400;
-        throw error;
+        return { success: false, message: 'Codice OTP errato' };
     }
 
     await prisma.user.update({
@@ -166,14 +145,10 @@ async function verifyOtp({ email, otp }) {
 async function resendOtp({ email }) {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-        const error = new Error('Utente non trovato');
-        error.status = 400;
-        throw error;
+        return { success: false, message: 'Utente non trovato' };
     }
     if (user.isVerified) {
-        const error = new Error('Email già verificata');
-        error.status = 400;
-        throw error;
+        return { success: false, message: 'Email già verificata' };
     }
 
     const otp = generateOTP();
@@ -189,7 +164,11 @@ async function resendOtp({ email }) {
     });
 
     const frontendVerifyUrl = process.env.FRONTEND_VERIFY_URL || 'http://localhost:3000/verify-otp';
-    await sendEmail(email, otp, frontendVerifyUrl);
+    try {
+        await sendEmail(email, otp, frontendVerifyUrl);
+    } catch (error) {
+        return { success: false, message: 'Invio email fallito: ' + error.message };
+    }
 
     return { success: true, message: 'Nuovo codice inviato!' };
 }
