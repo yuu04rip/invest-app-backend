@@ -7,4 +7,10 @@ const apiLimiter = require('../middleware/rateLimiter');
 // Info utente loggato (inclusi profilo e referral)
 router.get('/me', apiLimiter, auth, userController.me);
 
-module.exports = router;
+// Controllo disponibilità username
+router.get('/check-username', apiLimiter, userController.checkUsername);
+
+// Aggiorna username e/o foto profilo
+router.patch('/me', apiLimiter, auth, userController.updateMe);
+
+module.exports = router;;

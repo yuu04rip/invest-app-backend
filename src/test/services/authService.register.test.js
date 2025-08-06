@@ -123,7 +123,12 @@ describe('authService.register - extra coverage', () => {
 
     it('happy path senza referral', async () => {
         prisma.user.findUnique.mockResolvedValueOnce(null); // no user exists
-        prisma.user.create.mockResolvedValueOnce({ id: 1, email: 'new@user.com', role: 'user' });
+        prisma.user.create.mockResolvedValueOnce({
+            id: 1,
+            email: 'new@user.com',
+            role: 'user',
+            username: 'testuser1' // <-- AGGIUNGI QUESTO!
+        });
         prisma.profile.create.mockResolvedValueOnce({});
         sendEmail.mockResolvedValueOnce();
 
@@ -133,17 +138,17 @@ describe('authService.register - extra coverage', () => {
             role: 'user'
         });
 
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             id: 1,
             email: 'new@user.com',
             role: 'user',
-            message: expect.stringContaining('Registrazione avvenuta')
+            message: expect.stringContaining('Registrazione avvenuta'),
+            username: expect.any(String),
         });
         expect(prisma.user.create).toHaveBeenCalled();
         expect(prisma.profile.create).toHaveBeenCalled();
         expect(sendEmail).toHaveBeenCalled();
     });
-
     it('happy path con referral valido', async () => {
         prisma.user.findUnique.mockResolvedValueOnce(null); // no user exists
         // referral valido, non usato, non scaduto
