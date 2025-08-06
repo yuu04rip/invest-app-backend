@@ -1,12 +1,15 @@
 const authService = require('../../services/authService');
 const prisma = require('../../prisma');
-const sendEmail = require('../../utils/sendEmail');
+const sendEmailModule = require('../../utils/sendEmail');
 const generateOTP = require('../../utils/generateOTP');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 jest.mock('../../prisma');
-jest.mock('../../utils/sendEmail');
+jest.mock('../../utils/sendEmail', () => ({
+    sendEmail: jest.fn(),
+    sendResetOtpEmail: jest.fn(),
+}));
 jest.mock('../../utils/generateOTP', () => jest.fn(() => '123456'));
 
 describe('authService login', () => {
@@ -108,13 +111,14 @@ describe('authService.resendOtp', () => {
     it('resendOtp successo', async () => {
         prisma.user.findUnique.mockResolvedValueOnce({ isVerified: false });
         prisma.user.update.mockResolvedValueOnce({});
-        sendEmail.mockResolvedValueOnce();
+        sendEmailModule.sendEmail.mockResolvedValueOnce();
         await expect(authService.resendOtp({ email: 'test@ok.com' })).resolves.toEqual({
             success: true,
             message: 'Nuovo codice inviato!'
         });
     });
 });
+
 describe('authService.register - extra coverage', () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -127,10 +131,10 @@ describe('authService.register - extra coverage', () => {
             id: 1,
             email: 'new@user.com',
             role: 'user',
-            username: 'testuser1' // <-- AGGIUNGI QUESTO!
+            username: 'testuser1'
         });
         prisma.profile.create.mockResolvedValueOnce({});
-        sendEmail.mockResolvedValueOnce();
+        sendEmailModule.sendEmail.mockResolvedValueOnce();
 
         const result = await authService.register({
             email: 'new@user.com',
@@ -147,11 +151,11 @@ describe('authService.register - extra coverage', () => {
         });
         expect(prisma.user.create).toHaveBeenCalled();
         expect(prisma.profile.create).toHaveBeenCalled();
-        expect(sendEmail).toHaveBeenCalled();
+        expect(sendEmailModule.sendEmail).toHaveBeenCalled();
     });
+
     it('happy path con referral valido', async () => {
         prisma.user.findUnique.mockResolvedValueOnce(null); // no user exists
-        // referral valido, non usato, non scaduto
         prisma.referral.findUnique.mockResolvedValueOnce({
             isUsed: false,
             expiresAt: new Date(Date.now() + 100000)
@@ -159,7 +163,7 @@ describe('authService.register - extra coverage', () => {
         prisma.user.create.mockResolvedValueOnce({ id: 2, email: 'ref@user.com', role: 'user' });
         prisma.profile.create.mockResolvedValueOnce({});
         prisma.referral.update.mockResolvedValueOnce({});
-        sendEmail.mockResolvedValueOnce();
+        sendEmailModule.sendEmail.mockResolvedValueOnce();
 
         const result = await authService.register({
             email: 'ref@user.com',

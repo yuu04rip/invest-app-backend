@@ -9,24 +9,27 @@ datasource db {
 }
 
 model User {
-  id              String    @id @default(uuid())
-  email           String    @unique
-  username        String    @unique
-  passwordHash    String
-  role            Role
-  isActive        Boolean   @default(true)
-  isVerified      Boolean   @default(false)
-  profileImageUrl String?
-  otpCode         String?
-  otpExpiresAt    DateTime?
-  otpAttempts     Int       @default(0)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  Profile       Profile?
-  referrals     Referral[]    @relation("CreatorReferrals")
-  usedReferrals Referral[]    @relation("UsedReferrals")
-  albumAccesses AlbumAccess[]
+  id                      String        @id @default(uuid())
+  email                   String        @unique
+  username                String        @unique
+  passwordHash            String
+  role                    Role
+  isActive                Boolean       @default(true)
+  isVerified              Boolean       @default(false)
+  profileImageUrl         String?
+  otpCode                 String?
+  otpExpiresAt            DateTime?
+  otpAttempts             Int           @default(0)
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+  resetPasswordOtp        String? // OTP per reset password
+  resetPasswordOtpExpires DateTime? // Scadenza OTP reset password
+  resetPasswordToken      String? // Token per reset da link (opzionale)
+  resetPasswordExpires    DateTime? // Scadenza token reset password
+  Profile                 Profile?
+  referrals               Referral[]    @relation("CreatorReferrals")
+  usedReferrals           Referral[]    @relation("UsedReferrals")
+  albumAccesses           AlbumAccess[]
 }
 
 model Referral {
