@@ -6,12 +6,13 @@ jest.mock('../../controllers/authController', () => ({
     register: jest.fn((req, res) => res.status(200).json({ route: 'register' })),
     login: jest.fn((req, res) => res.status(200).json({ route: 'login' })),
     verifyOtp: jest.fn((req, res) => res.status(200).json({ route: 'verifyOtp' })),
-    resendOtp: jest.fn((req, res) => res.status(200).json({ route: 'resendOtp' }),
-    ),
+    resendOtp: jest.fn((req, res) => res.status(200).json({ route: 'resendOtp' })),
     changePassword: jest.fn((req, res) => res.status(200).json({ route: 'changePassword' })),
     requestPasswordReset: jest.fn((req, res) => res.status(200).json({ route: 'requestPasswordReset' })),
     verifyResetOtp: jest.fn((req, res) => res.status(200).json({ route: 'verifyResetOtp' })),
     resetPassword: jest.fn((req, res) => res.status(200).json({ route: 'resetPassword' })),
+    logout: jest.fn((req, res) => res.status(200).json({ route: 'logout' })),
+    profile: jest.fn((req, res) => res.status(200).json({ route: 'profile' })),
 }));
 jest.mock('../../middleware/authValidators', () => ({
     registerValidator: (req, res, next) => next(),
@@ -25,10 +26,14 @@ jest.mock('../../middleware/authValidators', () => ({
 }));
 jest.mock('../../middleware/validate', () => (req, res, next) => next());
 jest.mock('../../middleware/rateLimiter', () => (req, res, next) => next());
-jest.mock('../../middleware/auth', () => (req, res, next) => {
-    req.user = { id: 1 }; // mock user id for authenticated routes
-    next();
-});
+
+// ATTENZIONE: qui serve una funzione come default export!
+jest.mock('../../middleware/auth', () =>
+    (req, res, next) => {
+        req.user = { id: 1 };
+        next();
+    }
+);
 
 const authRouter = require('../../routes/auth');
 
@@ -91,5 +96,19 @@ describe('auth.js router coverage', () => {
             .send({ email: 'a@b.com', newPassword: 'new', confirmNewPassword: 'new' });
         expect(res.status).toBe(200);
         expect(res.body.route).toBe('resetPassword');
+    });
+
+    it('POST /auth/logout triggers route', async () => {
+        const res = await request(app)
+            .post('/auth/logout');
+        expect(res.status).toBe(200);
+        expect(res.body.route).toBe('logout');
+    });
+
+    it('GET /auth/profile triggers route', async () => {
+        const res = await request(app)
+            .get('/auth/profile');
+        expect(res.status).toBe(200);
+        expect(res.body.route).toBe('profile');
     });
 });

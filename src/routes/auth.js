@@ -23,5 +23,6 @@ router.post('/change-password', authenticate, changePasswordValidator, validate,
 router.post('/request-password-reset', requestPasswordResetValidator, validate, authController.requestPasswordReset);
 router.post('/verify-reset-otp', verifyResetOtpValidator, validate, authController.verifyResetOtp);
 router.post('/reset-password', resetPasswordValidator, validate, authController.resetPassword);
-
+router.post('/logout', authenticate, authController.logout);
+router.get('/profile', authenticate, authController.profile);
 module.exports = router;

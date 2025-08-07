@@ -6,17 +6,35 @@ describe('API Error Cases - Invest App Backend', () => {
     let testEmail = `erruser_${Date.now()}@mail.com`;
     const testPassword = 'ErrPassw0rd!';
     let testToken;
+    let testUser; // <--- aggiungi questo
 
     beforeAll(async () => {
         await cleanupTestUser(testEmail);
-        await request(app)
+        const registerRes = await request(app)
             .post('/api/auth/register')
             .send({ email: testEmail, password: testPassword, role: 'investitore' });
+
+        if (registerRes.status !== 201 && registerRes.status !== 200) {
+            console.error('Register failed in error test:', registerRes.status, registerRes.body);
+            throw new Error('Register failed in error test');
+        }
+
         // Verifica OTP
-        const user = await prisma.user.findUnique({ where: { email: testEmail } });
-        await request(app)
+        testUser = await prisma.user.findUnique({ where: { email: testEmail } });
+        if (!testUser) {
+            console.error('User not found after registration (error test):', testEmail);
+            throw new Error('User not found after registration (error test)');
+        }
+
+        const otpRes = await request(app)
             .post('/api/auth/verify-otp')
-            .send({ email: testEmail, otp: user.otpCode });
+            .send({ email: testEmail, otp: testUser.otpCode });
+
+        if (otpRes.status !== 200) {
+            console.error('OTP verify failed in error test:', otpRes.status, otpRes.body);
+            throw new Error('OTP verify failed in error test');
+        }
+
         // Login
         const res = await request(app)
             .post('/api/auth/login')
@@ -67,6 +85,7 @@ describe('API Error Cases - Invest App Backend', () => {
             expect([400, 401]).toContain(res.statusCode);
         });
     });
+
 
     // --- Products Error Cases ---
     describe('Products errors', () => {

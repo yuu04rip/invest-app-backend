@@ -5,7 +5,32 @@ const generateOTP = require('../../utils/generateOTP');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-jest.mock('../../prisma');
+jest.mock('../../prisma', () => {
+    // Definiamo i mock delle tabelle
+    const user = {
+        findUnique: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+    };
+    const profile = {
+        create: jest.fn(),
+    };
+    const referral = {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+    };
+
+    return {
+        user,
+        profile,
+        referral,
+        $transaction: jest.fn(async (callback) => {
+            // Passiamo un "tx" fittizio con le tabelle mockate
+            const tx = { user, profile, referral };
+            return callback(tx);
+        }),
+    };
+});
 jest.mock('../../utils/sendEmail', () => ({
     sendEmail: jest.fn(),
     sendResetOtpEmail: jest.fn(),

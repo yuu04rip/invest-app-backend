@@ -1,7 +1,7 @@
 const prisma = require('../prisma');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { sendEmail, sendResetOtpEmail } = require('../utils/sendEmail'); // <-- FIX QUI!
+const { sendEmail, sendResetOtpEmail } = require('../utils/sendEmail');
 const generateOTP = require('../utils/generateOTP');
 
 /**
@@ -38,39 +38,53 @@ async function register({ email, password, role, referralCode, username }) {
     const otp = generateOTP();
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    const user = await prisma.user.create({
-        data: {
-            email,
-            passwordHash,
-            role,
-            isActive: true,
-            isVerified: false,
-            otpCode: otp,
-            otpExpiresAt,
-            otpAttempts: 0,
-            username,
-        },
-    });
+    // Usa una transazione atomica!
+    let result;
+    try {
+        result = await prisma.$transaction(async (tx) => {
+            const user = await tx.user.create({
+                data: {
+                    email,
+                    passwordHash,
+                    role,
+                    isActive: true,
+                    isVerified: false,
+                    otpCode: otp,
+                    otpExpiresAt,
+                    otpAttempts: 0,
+                    username,
+                },
+            });
 
-    await prisma.profile.create({
-        data: {
-            userId: user.id,
-            name: "",
-            surname: "",
-            bio: "",
-            sector: "",
-            interests: "",
-        }
-    });
+            await tx.profile.create({
+                data: {
+                    userId: user.id,
+                    name: "",
+                    surname: "",
+                    bio: "",
+                    sector: "",
+                    interests: "",
+                }
+            });
 
-    if (usedReferral) {
-        await prisma.referral.update({
-            where: { code: referralCode },
-            data: {
-                isUsed: true,
-                usedByUserId: user.id,
-            },
+            if (usedReferral) {
+                await tx.referral.update({
+                    where: { code: referralCode },
+                    data: {
+                        isUsed: true,
+                        usedByUserId: user.id,
+                    },
+                });
+            }
+
+            return user;
         });
+    } catch (err) {
+        // FK violation, unique, or other error: rendilo umano
+        if (err.code === 'P2003') {
+            throwError('Errore interno creazione utente: vincolo non rispettato (profile/user).', 500);
+        }
+        throw err;
     }
 
     const frontendVerifyUrl = process.env.FRONTEND_VERIFY_URL || 'http://localhost:3000/verify-otp';
@@ -81,10 +95,10 @@ async function register({ email, password, role, referralCode, username }) {
     }
 
     return {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        username: user.username,
+        id: result.id,
+        email: result.email,
+        role: result.role,
+        username: result.username,
         message: 'Registrazione avvenuta. Controlla la mail per il codice di verifica OTP.'
     };
 }
@@ -92,6 +106,7 @@ async function register({ email, password, role, referralCode, username }) {
 // LOGIN
 async function login({ email, password }) {
     const user = await prisma.user.findUnique({ where: { email } });
+    console.log("DEBUG isVerified in login:", user && user.isVerified); // <-- DEBUG
     if (!user) throwError('Invalid credentials', 401);
 
     const valid = await bcrypt.compare(password, user.passwordHash);
@@ -99,7 +114,7 @@ async function login({ email, password }) {
     if (!user.isVerified) throwError('Email non verificata', 403);
 
     const token = jwt.sign(
-        { userId: user.id, role: user.role },
+        { id: user.id, role: user.role },
         process.env.JWT_SECRET || 'supersecretkey',
         { expiresIn: '7d' }
     );
@@ -132,6 +147,9 @@ async function verifyOtp({ email, otp }) {
             otpAttempts: 0,
         }
     });
+
+    const updated = await prisma.user.findUnique({ where: { email } });
+    console.log("DEBUG isVerified dopo verifyOtp:", updated && updated.isVerified); // <-- DEBUG
 
     return { success: true, message: 'Email verificata!' };
 }
@@ -197,7 +215,7 @@ async function requestPasswordReset({ email }) {
         }
     });
 
-    await sendResetOtpEmail(email, otp); // <-- FIX QUI!
+    await sendResetOtpEmail(email, otp);
     return { success: true, message: 'Se l\'email è registrata riceverai le istruzioni.' };
 }
 

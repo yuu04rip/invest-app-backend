@@ -34,6 +34,7 @@ describe('API Integrata - Invest App Backend', () => {
         adminToken = generateTestToken({ id: 'admin-id', email: `admin_${Date.now()}@mail.com`, role: 'ADMIN' });
         userToken = generateTestToken({ id: 'user-id', email: `user_${Date.now()}@mail.com`, role: 'USER' });
     });
+
     afterAll(async () => {
         const user = await prisma.user.findUnique({ where: { email: testEmail } });
         if (user) {

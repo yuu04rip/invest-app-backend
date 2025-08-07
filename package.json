@@ -21,6 +21,8 @@
   "homepage": "https://github.com/yuu04rip/invest-app-backend#readme",
   "dependencies": {
     "@prisma/client": "^6.13.0",
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-node": "^4.22.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
@@ -29,7 +31,9 @@
     "express-rate-limit": "^8.0.1",
     "express-validator": "^7.2.1",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
     "nodemailer": "^7.0.5",
+    "nsfwjs": "^4.2.1",
     "prisma": "^6.13.0",
     "stripe": "^18.3.0"
   },

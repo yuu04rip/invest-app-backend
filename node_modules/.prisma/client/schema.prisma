@@ -30,6 +30,69 @@ model User {
   referrals               Referral[]    @relation("CreatorReferrals")
   usedReferrals           Referral[]    @relation("UsedReferrals")
   albumAccesses           AlbumAccess[]
+  chatRequestsSent        ChatRequest[] @relation("chatRequestsSent")
+  chatRequestsReceived    ChatRequest[] @relation("chatRequestsReceived")
+  chatsA                  Chat[]        @relation("chatsA")
+  chatsB                  Chat[]        @relation("chatsB")
+  messages                Message[]
+  Media                   Media[]
+}
+
+model ChatRequest {
+  id         Int       @id @default(autoincrement())
+  fromUser   User      @relation("chatRequestsSent", fields: [fromUserId], references: [id])
+  fromUserId String
+  toUser     User      @relation("chatRequestsReceived", fields: [toUserId], references: [id])
+  toUserId   String
+  status     String // "pending", "accepted", "rejected"
+  createdAt  DateTime  @default(now())
+  acceptedAt DateTime?
+  chat       Chat? // Se accettata, viene creata la chat
+}
+
+model Chat {
+  id            Int          @id @default(autoincrement())
+  userA         User         @relation("chatsA", fields: [userAId], references: [id])
+  userAId       String
+  userB         User         @relation("chatsB", fields: [userBId], references: [id])
+  userBId       String
+  createdAt     DateTime     @default(now())
+  messages      Message[]
+  chatRequestId Int?         @unique // <<--- AGGIUNGI QUESTO!
+  chatRequest   ChatRequest? @relation(fields: [chatRequestId], references: [id])
+  isBlocked     Boolean      @default(false)
+  blockedById   String?
+  blockedAt     DateTime?
+  isClosed      Boolean      @default(false)
+  closedAt      DateTime?
+}
+
+model Message {
+  id            Int      @id @default(autoincrement())
+  chat          Chat     @relation(fields: [chatId], references: [id])
+  chatId        Int
+  sender        User     @relation(fields: [senderId], references: [id])
+  senderId      String
+  type          String // "text", "image", "audio", "video"
+  content       String // Testo o url del media
+  createdAt     DateTime @default(now())
+  // Eventuale flag per moderazione
+  isFlagged     Boolean  @default(false)
+  flaggedReason String?
+  Media         Media[]
+}
+
+model Media {
+  id            Int      @id @default(autoincrement())
+  url           String
+  type          String // "image", "audio", "video"
+  uploadedBy    User     @relation(fields: [uploadedById], references: [id])
+  uploadedById  String
+  createdAt     DateTime @default(now())
+  message       Message? @relation(fields: [messageId], references: [id])
+  messageId     Int?
+  isFlagged     Boolean  @default(false)
+  flaggedReason String?
 }
 
 model Referral {

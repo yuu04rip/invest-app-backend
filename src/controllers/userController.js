@@ -3,6 +3,7 @@ const prisma = require('../prisma');
 // Restituisce dati utente, profilo e referral
 exports.me = async (req, res) => {
     try {
+        console.log("DEBUG /user/me req.user:", req.user); // Debug request user
         const user = await prisma.user.findUnique({
             where: { id: req.user.userId },
             select: {
@@ -19,6 +20,7 @@ exports.me = async (req, res) => {
                 usedReferrals: true
             }
         });
+        console.log("DEBUG /user/me found user:", user); // Debug found user
         if (!user) return res.status(404).json({ error: 'User not found' });
         res.json(user);
     } catch (err) {

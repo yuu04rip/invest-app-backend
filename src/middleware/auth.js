@@ -24,6 +24,7 @@ module.exports = function (req, res, next) {
             return next(error);
         }
         req.user = decoded;
+        req.user.userId = decoded.id; // PATCH: aggiungi questa riga per compatibilità con controller
         next();
     });
 };
