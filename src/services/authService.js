@@ -95,6 +95,7 @@ async function register({ email, password, role, referralCode, username }) {
     }
 
     return {
+        success: true,
         id: result.id,
         email: result.email,
         role: result.role,
