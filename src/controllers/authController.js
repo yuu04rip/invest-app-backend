@@ -51,11 +51,33 @@ exports.resendOtp = async (req, res, next) => {
 
 exports.changePassword = async (req, res, next) => {
     try {
-        const userId = req.user.id;
-        const { oldPassword, newPassword } = req.body;
-        console.log("DEBUG changePassword input:", { userId, oldPassword, newPassword }); // DEBUG
-        const result = await authService.changePassword({ userId, oldPassword, newPassword });
-        console.log("DEBUG changePassword result:", result); // DEBUG
+        const userId = req.user.id; // o req.user.userId
+        const {
+            oldPassword,
+            newPassword,
+            confirmNewPassword,
+            confirmPassword,
+            newPasswordConfirm,
+        } = req.body;
+
+        // Usa alias per evitare errori di naming dal client/Postman
+        const confirm = confirmNewPassword ?? confirmPassword ?? newPasswordConfirm;
+
+        // Debug sicuro (solo lunghezze, non i valori)
+        console.log("DEBUG changePassword keys:", Object.keys(req.body));
+        console.log(
+            "DEBUG lengths new/confirm:",
+            (typeof newPassword === "string" ? newPassword.length : 0),
+            (typeof confirm === "string" ? confirm.length : 0)
+        );
+
+        const result = await authService.changePassword({
+            userId,
+            oldPassword,
+            newPassword,
+            confirmNewPassword: confirm,
+        });
+
         res.json(result);
     } catch (err) {
         console.error("DEBUG changePassword error:", err);
