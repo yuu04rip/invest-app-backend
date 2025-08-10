@@ -2,32 +2,48 @@ const { body, param } = require('express-validator');
 
 const updateProfileValidator = [
     body('name')
-        .notEmpty()
-        .withMessage('Il nome è obbligatorio'),
+        .exists().withMessage('Il nome è obbligatorio')
+        .bail()
+        .isString().withMessage('Il nome deve essere una stringa')
+        .bail()
+        .notEmpty().withMessage('Il nome non può essere vuoto')
+        .bail()
+        .trim(),
+
     body('surname')
-        .notEmpty()
-        .withMessage('Il cognome è obbligatorio'),
+        .exists().withMessage('Il cognome è obbligatorio')
+        .bail()
+        .isString().withMessage('Il cognome deve essere una stringa')
+        .bail()
+        .notEmpty().withMessage('Il cognome non può essere vuoto')
+        .bail()
+        .trim(),
+
     body('bio')
-        .optional()
-        .isString()
-        .withMessage('La bio deve essere una stringa'),
+        .optional({ nullable: true })
+        .isString().withMessage('La bio deve essere una stringa')
+        .bail()
+        .trim(),
+
     body('sector')
-        .optional()
-        .isString()
-        .withMessage('Il settore deve essere una stringa'),
+        .optional({ nullable: true })
+        .isString().withMessage('Il settore deve essere una stringa')
+        .bail()
+        .trim(),
+
     body('interests')
-        .optional()
-        .isString()
-        .withMessage('Gli interessi devono essere una stringa'),
+        .optional({ nullable: true })
+        .isString().withMessage('Gli interessi devono essere una stringa')
+        .bail()
+        .trim(),
 ];
 
+// Se l'ID è UUID nel tuo schema Prisma, valida come UUID:
 const idParamValidator = [
-    param('id')
-        .isString()
-        .withMessage('ID non valido')
+    param('id').isUUID().withMessage('ID non valido (deve essere UUID)'),
 ];
 
 module.exports = {
     updateProfileValidator,
-    idParamValidator
+    idParamValidator,
 };

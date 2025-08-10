@@ -1,56 +1,53 @@
 const prisma = require('../prisma');
 
-// Ottieni il profilo dell'utente loggato
+// Normalizza: stringhe vuote -> null
+function normalizeNullable(v) {
+    if (v === undefined || v === null) return null;
+    if (typeof v === 'string') {
+        const t = v.trim();
+        return t.length === 0 ? null : t;
+    }
+    return v;
+}
+
+// GET /api/profiles/me
 exports.getMyProfile = async (req, res) => {
     try {
-        const userId = req.user.userId;
-        const profile = await prisma.profile.findUnique({
-            where: { userId }
-        });
+        const userId = req.user?.userId; // coerente con il tuo auth
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const profile = await prisma.profile.findUnique({ where: { userId } });
         if (!profile) return res.status(404).json({ error: 'Profile not found' });
+
         res.json(profile);
     } catch (err) {
         res.status(500).json({ error: 'Unable to get profile', details: err.message });
     }
 };
 
-// Crea o aggiorna il profilo dell'utente loggato
+// PUT /api/profiles/me  (create or update)
 exports.updateMyProfile = async (req, res) => {
     try {
-        const userId = req.user.userId;
-        // Fallback a stringa vuota se non passati
-        const name = req.body.name ?? "";
-        const surname = req.body.surname ?? "";
-        const bio = req.body.bio ?? "";
-        const sector = req.body.sector ?? "";
-        const interests = req.body.interests ?? "";
+        const userId = req.user?.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-        // Validazione base
+        const name = (req.body?.name || '').trim();
+        const surname = (req.body?.surname || '').trim();
         if (!name || !surname) {
-            return res.status(400).json({ error: "Name and surname are required." });
+            return res.status(400).json({ error: 'Name and surname are required.' });
         }
 
-        let profile = await prisma.profile.findUnique({ where: { userId } });
-        if (!profile) {
-            // Crea nuovo profilo
-            profile = await prisma.profile.create({
-                data: {
-                    userId,
-                    name,
-                    surname,
-                    bio,
-                    sector,
-                    interests,
-                }
-            });
-        } else {
-            // Aggiorna profilo esistente
-            profile = await prisma.profile.update({
-                where: { userId },
-                data: { name, surname, bio, sector, interests }
-            });
-        }
-        res.json(profile);
+        const bio = normalizeNullable(req.body?.bio);
+        const sector = normalizeNullable(req.body?.sector);
+        const interests = normalizeNullable(req.body?.interests);
+
+        const updated = await prisma.profile.upsert({
+            where: { userId },
+            update: { name, surname, bio, sector, interests },
+            create: { userId, name, surname, bio, sector, interests },
+        });
+
+        res.json(updated); // 200 OK
     } catch (err) {
         res.status(500).json({ error: 'Unable to update profile', details: err.message });
     }
@@ -58,14 +55,15 @@ exports.updateMyProfile = async (req, res) => {
 
 exports.getAllProfiles = async (req, res) => {
     try {
-        const profiles = await prisma.profile.findMany();
+        const profiles = await prisma.profile.findMany({
+            orderBy: { createdAt: 'desc' },
+        });
         res.json(profiles);
     } catch (err) {
         res.status(500).json({ error: 'Unable to fetch profiles', details: err.message });
     }
 };
 
-// Dettaglio profilo per ID
 exports.getProfileById = async (req, res) => {
     try {
         const { id } = req.params;
@@ -77,37 +75,43 @@ exports.getProfileById = async (req, res) => {
     }
 };
 
-// Modifica profilo per ID
 exports.updateProfileById = async (req, res) => {
     try {
         const { id } = req.params;
-        const name = req.body.name ?? "";
-        const surname = req.body.surname ?? "";
-        const bio = req.body.bio ?? "";
-        const sector = req.body.sector ?? "";
-        const interests = req.body.interests ?? "";
 
+        const name = (req.body?.name || '').trim();
+        const surname = (req.body?.surname || '').trim();
         if (!name || !surname) {
-            return res.status(400).json({ error: "Name and surname are required." });
+            return res.status(400).json({ error: 'Name and surname are required.' });
         }
 
-        const profile = await prisma.profile.update({
+        const bio = normalizeNullable(req.body?.bio);
+        const sector = normalizeNullable(req.body?.sector);
+        const interests = normalizeNullable(req.body?.interests);
+
+        const updated = await prisma.profile.update({
             where: { id },
-            data: { name, surname, bio, sector, interests }
+            data: { name, surname, bio, sector, interests },
         });
-        res.json(profile);
+
+        res.json(updated);
     } catch (err) {
+        if (err.code === 'P2025') {
+            return res.status(404).json({ error: 'Profile not found' });
+        }
         res.status(500).json({ error: 'Unable to update profile', details: err.message });
     }
 };
 
-// Elimina profilo per ID
 exports.deleteProfileById = async (req, res) => {
     try {
         const { id } = req.params;
         await prisma.profile.delete({ where: { id } });
-        res.json({ message: 'Profile deleted' });
+        res.status(204).send();
     } catch (err) {
+        if (err.code === 'P2025') {
+            return res.status(404).json({ error: 'Profile not found' });
+        }
         res.status(500).json({ error: 'Unable to delete profile', details: err.message });
     }
 };
