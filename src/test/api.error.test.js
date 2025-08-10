@@ -1,15 +1,26 @@
+// Usa prisma reale per questa suite di integrazione
+jest.unmock('../prisma');
+jest.resetModules();
+
+// Mocka side-effects che non servono ai test
+jest.mock('../middleware/nsfwMiddleware', () => (req, res, next) => next());
+jest.mock('../utils/sendEmail', () => ({
+    sendEmail: jest.fn().mockResolvedValue({ success: true }),
+}));
+
+const app = require('../index');           // importa l'app solo ora
+const prisma = require('../prisma');       // stesso prisma dell'app
 const request = require('supertest');
-const app = require('../index');
-const prisma = require('../prisma');
 
 describe('API Error Cases - Invest App Backend', () => {
-    let testEmail = `erruser_${Date.now()}@mail.com`;
+    const testEmail = `erruser_${Date.now()}@mail.com`;
     const testPassword = 'ErrPassw0rd!';
     let testToken;
-    let testUser; // <--- aggiungi questo
+    let testUser;
 
     beforeAll(async () => {
         await cleanupTestUser(testEmail);
+
         const registerRes = await request(app)
             .post('/api/auth/register')
             .send({ email: testEmail, password: testPassword, role: 'investitore' });
@@ -19,8 +30,8 @@ describe('API Error Cases - Invest App Backend', () => {
             throw new Error('Register failed in error test');
         }
 
-        // Verifica OTP
-        testUser = await prisma.user.findUnique({ where: { email: testEmail } });
+        // Piccolo retry in caso di ritardo
+        testUser = await findUserWithRetry(testEmail, 8, 50);
         if (!testUser) {
             console.error('User not found after registration (error test):', testEmail);
             throw new Error('User not found after registration (error test)');
@@ -35,30 +46,36 @@ describe('API Error Cases - Invest App Backend', () => {
             throw new Error('OTP verify failed in error test');
         }
 
-        // Login
-        const res = await request(app)
+        const loginRes = await request(app)
             .post('/api/auth/login')
             .send({ email: testEmail, password: testPassword });
-        testToken = res.body.token;
-    },20000);
+
+        testToken = loginRes.body.token;
+    }, 30000);
 
     afterAll(async () => {
         await cleanupTestUser(testEmail);
         await prisma.$disconnect();
     });
 
-    // Utility di pulizia per evitare errori di foreign key
     async function cleanupTestUser(email) {
         const user = await prisma.user.findUnique({ where: { email } });
         if (user) {
             await prisma.profile.deleteMany({ where: { userId: user.id } });
             await prisma.albumAccess.deleteMany({ where: { userId: user.id } });
-            // Elimina referral creati o usati dall'utente
             await prisma.referral.deleteMany({ where: { creatorUserId: user.id } });
             await prisma.referral.deleteMany({ where: { usedByUserId: user.id } });
-            // Ora elimina l'utente
             await prisma.user.deleteMany({ where: { email } });
         }
+    }
+
+    async function findUserWithRetry(email, retries = 5, delayMs = 50) {
+        for (let i = 0; i < retries; i++) {
+            const u = await prisma.user.findUnique({ where: { email } });
+            if (u) return u;
+            await new Promise(r => setTimeout(r, delayMs));
+        }
+        return null;
     }
 
     // --- Auth Error Cases ---
@@ -85,7 +102,6 @@ describe('API Error Cases - Invest App Backend', () => {
             expect([400, 401]).toContain(res.statusCode);
         });
     });
-
 
     // --- Products Error Cases ---
     describe('Products errors', () => {
@@ -119,10 +135,10 @@ describe('API Error Cases - Invest App Backend', () => {
     // --- Profile Error Cases ---
     describe('Profile errors', () => {
         it('get profilo senza token', async () => {
-            const res = await request(app)
-                .get('/api/profile/me');
+            const res = await request(app).get('/api/profile/me');
             expect([401, 403]).toContain(res.statusCode);
         });
+
         it('update profilo con dati mancanti', async () => {
             const res = await request(app)
                 .put('/api/profile/me')
@@ -135,8 +151,7 @@ describe('API Error Cases - Invest App Backend', () => {
     // --- Common Errors ---
     describe('Common errors', () => {
         it('404 su endpoint inesistente', async () => {
-            const res = await request(app)
-                .get('/api/endpoint/doesnotexist');
+            const res = await request(app).get('/api/endpoint/doesnotexist');
             expect(res.statusCode).toBe(404);
         });
     });
