@@ -10,22 +10,28 @@ function normalizeNullable(v) {
     return v;
 }
 
-// GET /api/profiles/me
+// GET /api/profile/me
 exports.getMyProfile = async (req, res) => {
     try {
-        const userId = req.user?.userId; // coerente con il tuo auth
+        const userId = req.user?.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-        const profile = await prisma.profile.findUnique({ where: { userId } });
-        if (!profile) return res.status(404).json({ error: 'Profile not found' });
+        // Se nel tuo schema Profile ha la relazione "user", usa include per leggere subito la foto
+        const prof = await prisma.profile.findUnique({
+            where: { userId },
+            include: { user: { select: { profileImageUrl: true } } },
+        });
 
-        res.json(profile);
+        if (!prof) return res.status(404).json({ error: 'Profile not found' });
+
+        const { user, ...profile } = prof;
+        return res.json({ ...profile, profileImageUrl: user?.profileImageUrl ?? null });
     } catch (err) {
-        res.status(500).json({ error: 'Unable to get profile', details: err.message });
+        return res.status(500).json({ error: 'Unable to get profile', details: err.message });
     }
 };
 
-// PUT /api/profiles/me  (create or update)
+// PUT /api/profile/me (create or update + eventuale foto profilo)
 exports.updateMyProfile = async (req, res) => {
     try {
         const userId = req.user?.userId;
@@ -40,16 +46,35 @@ exports.updateMyProfile = async (req, res) => {
         const bio = normalizeNullable(req.body?.bio);
         const sector = normalizeNullable(req.body?.sector);
         const interests = normalizeNullable(req.body?.interests);
+        const profileImageUrl = normalizeNullable(req.body?.profileImageUrl);
 
-        const updated = await prisma.profile.upsert({
-            where: { userId },
-            update: { name, surname, bio, sector, interests },
-            create: { userId, name, surname, bio, sector, interests },
+        // Usa la forma callback della transazione per gestire l’update condizionale
+        const updated = await prisma.$transaction(async (tx) => {
+            const updatedProfile = await tx.profile.upsert({
+                where: { userId },
+                update: { name, surname, bio, sector, interests },
+                create: { userId, name, surname, bio, sector, interests },
+            });
+
+            if (profileImageUrl !== null) {
+                await tx.user.update({
+                    where: { id: userId },
+                    data: { profileImageUrl },
+                });
+            }
+
+            // Ritorna il profilo aggiornato insieme alla foto corrente
+            const user = await tx.user.findUnique({
+                where: { id: userId },
+                select: { profileImageUrl: true },
+            });
+
+            return { ...updatedProfile, profileImageUrl: user?.profileImageUrl ?? null };
         });
 
-        res.json(updated); // 200 OK
+        return res.json(updated);
     } catch (err) {
-        res.status(500).json({ error: 'Unable to update profile', details: err.message });
+        return res.status(500).json({ error: 'Unable to update profile', details: err.message });
     }
 };
 
@@ -58,20 +83,25 @@ exports.getAllProfiles = async (req, res) => {
         const profiles = await prisma.profile.findMany({
             orderBy: { createdAt: 'desc' },
         });
-        res.json(profiles);
+        return res.json(profiles);
     } catch (err) {
-        res.status(500).json({ error: 'Unable to fetch profiles', details: err.message });
+        return res.status(500).json({ error: 'Unable to fetch profiles', details: err.message });
     }
 };
 
 exports.getProfileById = async (req, res) => {
     try {
         const { id } = req.params;
-        const profile = await prisma.profile.findUnique({ where: { id } });
-        if (!profile) return res.status(404).json({ error: 'Profile not found' });
-        res.json(profile);
+        // Se vuoi includere anche qui la foto:
+        const prof = await prisma.profile.findUnique({
+            where: { id },
+            include: { user: { select: { profileImageUrl: true } } },
+        });
+        if (!prof) return res.status(404).json({ error: 'Profile not found' });
+        const { user, ...profile } = prof;
+        return res.json({ ...profile, profileImageUrl: user?.profileImageUrl ?? null });
     } catch (err) {
-        res.status(500).json({ error: 'Unable to fetch profile', details: err.message });
+        return res.status(500).json({ error: 'Unable to fetch profile', details: err.message });
     }
 };
 
@@ -94,12 +124,12 @@ exports.updateProfileById = async (req, res) => {
             data: { name, surname, bio, sector, interests },
         });
 
-        res.json(updated);
+        return res.json(updated);
     } catch (err) {
         if (err.code === 'P2025') {
             return res.status(404).json({ error: 'Profile not found' });
         }
-        res.status(500).json({ error: 'Unable to update profile', details: err.message });
+        return res.status(500).json({ error: 'Unable to update profile', details: err.message });
     }
 };
 
@@ -107,11 +137,11 @@ exports.deleteProfileById = async (req, res) => {
     try {
         const { id } = req.params;
         await prisma.profile.delete({ where: { id } });
-        res.status(204).send();
+        return res.status(204).send();
     } catch (err) {
         if (err.code === 'P2025') {
             return res.status(404).json({ error: 'Profile not found' });
         }
-        res.status(500).json({ error: 'Unable to delete profile', details: err.message });
+        return res.status(500).json({ error: 'Unable to delete profile', details: err.message });
     }
 };
